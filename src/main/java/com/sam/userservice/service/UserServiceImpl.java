@@ -4,8 +4,7 @@ import com.sam.userservice.domain.Role;
 import com.sam.userservice.domain.User;
 import com.sam.userservice.repo.RoleRepo;
 import com.sam.userservice.repo.UserRepo;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -19,14 +18,19 @@ import java.util.Collection;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 @Transactional
-@Slf4j
 public class UserServiceImpl implements UserService, UserDetailsService {
 
+  private static final Logger log = org.slf4j.LoggerFactory.getLogger(UserServiceImpl.class);
   private final UserRepo userRepo;
   private final RoleRepo roleRepo;
   private final PasswordEncoder passwordEncoder;
+
+  public UserServiceImpl(UserRepo userRepo, RoleRepo roleRepo, PasswordEncoder passwordEncoder) {
+    this.userRepo = userRepo;
+    this.roleRepo = roleRepo;
+    this.passwordEncoder = passwordEncoder;
+  }
 
   @Override
   public UserDetails loadUserByUsername(String userName) throws UsernameNotFoundException {
@@ -35,7 +39,7 @@ public class UserServiceImpl implements UserService, UserDetailsService {
       log.error("User not found in the database");
       throw new UsernameNotFoundException("User not found in the database");
     } else {
-      log.error("User {} found in the database", userName);
+      log.info("User {} found in the database", userName);
     }
     Collection<SimpleGrantedAuthority> authorities = new ArrayList<>();
     user.getRoles()

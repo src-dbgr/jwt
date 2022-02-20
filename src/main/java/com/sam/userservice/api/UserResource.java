@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sam.userservice.domain.Role;
 import com.sam.userservice.domain.User;
 import com.sam.userservice.service.UserService;
+import com.sam.userservice.utils.TokenUtils;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,14 +20,13 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URI;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.sam.userservice.filter.CustomAuthorizationFilter.BEARER;
-import static com.sam.userservice.utils.StringUtils.*;
+import static com.sam.userservice.utils.StringUtils.ROLES;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
@@ -75,26 +75,18 @@ public class UserResource {
     String authorizationHeader = request.getHeader(AUTHORIZATION);
     if (authorizationHeader != null && authorizationHeader.startsWith(BEARER)) {
       try {
-        String refresh_token = authorizationHeader.substring(BEARER.length());
+        String refreshToken = authorizationHeader.substring(BEARER.length());
         Algorithm algorithm =
             Algorithm.HMAC256("secret".getBytes()); // TODO change "secret" to a secure string
         JWTVerifier verifier = JWT.require(algorithm).build();
-        DecodedJWT decodedJWT = verifier.verify(refresh_token);
+        DecodedJWT decodedJWT = verifier.verify(refreshToken);
         String userName = decodedJWT.getSubject();
         User user = userService.getUser(userName);
-        String access_token =
-            JWT.create()
-                .withSubject(user.getUserName())
-                .withExpiresAt(new Date(System.currentTimeMillis() + 10 * 60 * 1000))
-                .withIssuer(request.getRequestURI().toString())
-                .withClaim(
-                    ROLES, user.getRoles().stream().map(Role::getName).collect(Collectors.toList()))
-                .sign(algorithm);
-        Map<String, String> tokens = new HashMap<>();
-        tokens.put(ACCESS_TOKEN, access_token);
-        tokens.put(REFRESH_TOKEN, refresh_token);
+        String accessToken = getAccessToken(user, request, algorithm);
         response.setContentType(APPLICATION_JSON_VALUE);
-        new ObjectMapper().writeValue(response.getOutputStream(), tokens);
+        new ObjectMapper()
+            .writeValue(
+                response.getOutputStream(), TokenUtils.getTokenMap(accessToken, refreshToken));
       } catch (Exception e) {
         log.error("Error logging in: {}", e.getMessage());
         response.setHeader("error", e.getMessage());
@@ -107,6 +99,12 @@ public class UserResource {
     } else {
       throw new RuntimeException("Refresh token is missing.");
     }
+  }
+
+  public static String getAccessToken(User user, HttpServletRequest request, Algorithm algorithm) {
+    return TokenUtils.prepareAccessToken(user.getUserName(), request, 10 * 60 * 1000)
+        .withClaim(ROLES, user.getRoles().stream().map(Role::getName).collect(Collectors.toList()))
+        .sign(algorithm);
   }
 
   @Data

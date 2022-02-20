@@ -15,6 +15,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import static com.sam.userservice.utils.APIUtils.*;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.security.config.http.SessionCreationPolicy.STATELESS;
@@ -36,16 +37,18 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
   protected void configure(HttpSecurity http) throws Exception {
     CustomAuthenticationFilter customAuthenticationFilter =
         new CustomAuthenticationFilter(authenticationManagerBean());
-    customAuthenticationFilter.setFilterProcessesUrl("/api/login");
+    customAuthenticationFilter.setFilterProcessesUrl(API_LOGIN);
     http.csrf().disable();
     http.sessionManagement().sessionCreationPolicy(STATELESS);
-    http.authorizeRequests().antMatchers("/api/login/**", "/api/token/refresh/**").permitAll();
-    http.authorizeRequests().antMatchers(GET, "/api/user/**").hasAnyAuthority("ROLE_USER");
-    http.authorizeRequests().antMatchers(POST, "/api/user/save/**").hasAnyAuthority("ROLE_ADMIN");
+    http.authorizeRequests()
+        .antMatchers(API_LOGIN + ALLOW_ALL_PATH, API_TOKEN_REFRESH + ALLOW_ALL_PATH)
+        .permitAll();
+    http.authorizeRequests().antMatchers(GET, API_USER_ALL).hasAnyAuthority("ROLE_USER");
+    http.authorizeRequests().antMatchers(POST, API_USER_SAVE_ALL).hasAnyAuthority("ROLE_ADMIN");
     http.authorizeRequests().anyRequest().authenticated();
     http.addFilter(customAuthenticationFilter); // Authentication
     // intercept any request before any other filters
-    http.addFilterBefore(// Authorization
+    http.addFilterBefore( // Authorization
         new CustomAuthorizationFilter(), UsernamePasswordAuthenticationFilter.class);
   }
 

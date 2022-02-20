@@ -1,8 +1,10 @@
 package com.sam.userservice.filter;
 
+import antlr.Token;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sam.userservice.utils.TokenUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,10 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.sam.userservice.utils.StringUtils.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
-import static com.sam.userservice.utils.StringUtils.ROLES;
-import static com.sam.userservice.utils.StringUtils.ACCESS_TOKEN;
-import static com.sam.userservice.utils.StringUtils.REFRESH_TOKEN;
 
 @Slf4j
 public class CustomAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
@@ -58,30 +58,31 @@ public class CustomAuthenticationFilter extends UsernamePasswordAuthenticationFi
     User user = (User) authentication.getPrincipal();
     Algorithm algorithm =
         Algorithm.HMAC256("secret".getBytes()); // TODO change "secret" to a secure string
-    String access_token =
-        JWT.create()
-            .withSubject(user.getUsername())
-            .withExpiresAt(new Date(System.currentTimeMillis() + 10 * 60 * 1000))
-            .withIssuer(request.getRequestURI().toString())
-            .withClaim(
-                ROLES,
-                user.getAuthorities().stream()
-                    .map(GrantedAuthority::getAuthority)
-                    .collect(Collectors.toList()))
-            .sign(algorithm);
-
-    String refresh_token =
-        JWT.create()
-            .withSubject(user.getUsername())
-            .withExpiresAt(new Date(System.currentTimeMillis() + 30 * 60 * 1000))
-            .withIssuer(request.getRequestURI().toString())
-            .sign(algorithm);
-//    response.setHeader("access_token", access_token);
-//    response.setHeader("refresh_token", refresh_token);
-    Map<String, String> tokens = new HashMap<>();
-    tokens.put(ACCESS_TOKEN, access_token);
-    tokens.put(REFRESH_TOKEN, refresh_token);
+    //    String accessToken = getAccessToken(user, request, algorithm);
+    String accessToken = getAccessToken(user, request, algorithm);
+    String refreshToken = getRefreshToken(user, request, algorithm);
+    //    response.setHeader("access_token", access_token);
+    //    response.setHeader("refresh_token", refresh_token);
     response.setContentType(APPLICATION_JSON_VALUE);
-    new ObjectMapper().writeValue(response.getOutputStream(), tokens);
+    new ObjectMapper()
+        .writeValue(response.getOutputStream(), TokenUtils.getTokenMap(accessToken, refreshToken));
+  }
+
+  public static String getAccessToken(User user, HttpServletRequest request, Algorithm algorithm) {
+    return TokenUtils.prepareAccessToken(user.getUsername(), request, 10 * 60 * 1000)
+        .withClaim(
+            ROLES,
+            user.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList()))
+        .sign(algorithm);
+  }
+
+  public static String getRefreshToken(User user, HttpServletRequest request, Algorithm algorithm) {
+    return JWT.create()
+        .withSubject(user.getUsername())
+        .withExpiresAt(new Date(System.currentTimeMillis() + 30 * 60 * 1000))
+        .withIssuer(request.getRequestURI().toString())
+        .sign(algorithm);
   }
 }

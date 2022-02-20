@@ -21,6 +21,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.sam.userservice.utils.APIUtils.API_LOGIN;
+import static com.sam.userservice.utils.APIUtils.API_TOKEN_REFRESH;
 import static com.sam.userservice.utils.StringUtils.ROLES;
 import static java.util.Arrays.stream;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
@@ -35,8 +37,8 @@ public class CustomAuthorizationFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
-    if (request.getServletPath().equals("/api/login")
-        || request.getServletPath().equals("/api/token/refresh")) {
+    if (request.getServletPath().equals(API_LOGIN)
+        || request.getServletPath().equals(API_TOKEN_REFRESH)) {
       filterChain.doFilter(request, response);
     } else {
       String authorizationHeader = request.getHeader(AUTHORIZATION);
